@@ -93,12 +93,12 @@ def ps_multipoles_template(k_data, k_template, mu_fid, pk_lin, S_par, S_per, S_s
 
 def two_point_cf_template(r, k, mu, pt, alpha_par, alpha_per):
     # monopole
-    p0t = (0.5) * np.trapz(pt, mu,1)
+    p0t = np.trapz(pt, mu,1)
     f0 = (0.5/((np.pi)**2))*(k**3)*p0t * np.exp(-k**2)
     xi0t = np.trapz(f0*j0(r[:,None] * k[None,:]), np.log(k), 1)
 
     # quadrupole
-    p2t = (5*0.5) * np.trapz(pt * lp2(mu), mu, 1)
+    p2t = 5 * np.trapz(pt * lp2(mu), mu, 1)
     f2 = -(0.5/((np.pi)**2))*(k**3)*p2t * np.exp(-k**2)
     xi2t = np.trapz(f2*j2(r[:,None] * k[None,:]), np.log(k), 1)
 
