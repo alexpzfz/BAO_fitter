@@ -20,7 +20,7 @@ def smooth_hinton2017(ks, pk, degree=13, sigma=1, weight=0.5, **kwargs):
     pk_smoothed = np.exp(polyval)
     return pk_smoothed
 
-def gaussd(k, mu, S_per, S_par):
+def gaussd(k, mu, S_par, S_per):
     """ Gaussian damping of the BAO feature """
     gd = np.exp(-(0.5)*((k**2)*(mu**2)*(S_par**2) + (k**2)*(1-mu**2)*(S_per**2)))
     return gd
@@ -38,10 +38,10 @@ def kaiser(mu, k, beta, S_r, iso=True):
         ka = (1 + beta*(mu**2))**2
     return ka
 
-def power_spectrum_template(k, mu, pk_lin, S_per, S_par, S_s, S_r, b, beta, iso=True):
+def power_spectrum_template(k, mu, pk_lin, S_par, S_per, S_s, S_r, b, beta, iso=True):
     """ Power spectrum in (k, mu) space """
     pnw = smooth_hinton2017(k, pk_lin)
-    pdw = np.multiply((pk_lin - pnw)[:,None], gaussd(k[:,None], mu[None,:], S_per, S_par)) + pnw[:,None]
+    pdw = np.multiply((pk_lin - pnw)[:,None], gaussd(k[:,None], mu[None,:], S_par, S_per)) + pnw[:,None]
     pt = pdw * np.multiply(F(k[:,None], mu[None,:], S_s), kaiser(mu[None,:], k[:, None], beta, S_r, iso))
     pt *= b**2
     return pt
