@@ -48,7 +48,7 @@ def g_inv(mu, alpha_par, alpha_per):
     F = alpha_par/alpha_per
     return (1/alpha_per) * (1 + mu**2 * (1/F**2 -1))**(0.5)
 
-def ps_multipoles_template(k_data, k_template, mu_fid, pk_lin, S_per, S_par, S_s, S_r, b, beta, iso, alpha_par, alpha_per):
+def ps_multipoles_template(k_data, k_template, mu_fid, pk_lin, S_par, S_per, S_s, S_r, b, beta, iso, alpha_par, alpha_per):
     
     # prime coordinates
     k_p = k_template
@@ -56,7 +56,7 @@ def ps_multipoles_template(k_data, k_template, mu_fid, pk_lin, S_per, S_par, S_s
     # mu_fid must be between 0 and 1
     
     # evaluate template
-    ps_template = power_spectrum_template(k_p, mu_p, pk_lin, S_per, S_par, S_s, S_r, b, beta, iso)
+    ps_template = power_spectrum_template(k_p, mu_p, pk_lin, S_par, S_per, S_s, S_r, b, beta, iso)
     
     # delimiting k_fiducial
     g_arr = g(mu_p, alpha_par, alpha_per)
