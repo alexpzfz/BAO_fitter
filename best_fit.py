@@ -65,6 +65,6 @@ data_dict['iso'] = iso
 data_dict['best_fit_out'] = best_fit
 data_dict['best_fit_values'] = {'b':b, 'beta':beta, 'alpha_par':alpha_par, 'alpha_per':alpha_per, 'Sigma_par':S_par, 'Sigma_per':S_per, 'Sigma_fog':S_s}
 data_dict['broad_band_exp'] = bb_exp
-ddat_dict['broad_band_coeff'] = np.split(coeffs, 2)
+data_dict['broad_band_coeff'] = np.split(coeffs, 2)
 with open(out_path + label.lower() + '.dict', 'wb') as file:
     pickle.dump(data_dict, file)
