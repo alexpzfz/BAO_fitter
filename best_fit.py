@@ -4,7 +4,6 @@ import scipy.optimize as op
 import scipy.integrate as integrate
 import sys
 import pickle
-from matplotlib import pyplot as plt
 from ps_template import *
 from multipoles import *
 from chi_squared import *
@@ -25,7 +24,6 @@ q_min = float(lines[8].split()[1]) # q means either s or k
 q_max = float(lines[9].split()[1])
 n_mu = int(lines[10].split()[1])
 bb_exp = list(map(int, lines[11].split(sep=': ')[1].split(sep=', ')))
-
 
 # Linear template and mu
 k, ps_lin = np.loadtxt(ps_lin_path, unpack=True)

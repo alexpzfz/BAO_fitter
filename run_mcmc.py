@@ -11,23 +11,38 @@ from truncate_covariance import *
 import zeus
 from multiprocessing import Pool
 
-# read param file
-with open(sys.argv[1], 'r') as file:
+# read parameters from file
+params = sys.argv[1]
+with open(params, 'r') as file:
     lines = file.readlines()
 label = lines[0].split()[1]
-mul_path = lines[1].split()[2]
-cov_path = lines[2].split()[2]
-ps_path = lines[3].split()[3]
-sigma_r = float(lines[4].split()[1])
-iso = bool(int(lines[5].split()[2]))
-s_min = float(lines[6].split()[2])
-s_max = float(lines[7].split()[2])
-S_par = float(lines[8].split()[1])
-S_per = float(lines[9].split()[1])
-S_s = float(lines[10].split()[1])
-sigmas = [S_par, S_per, S_s]
+mul_path = lines[1].split()[1]
+cov_path = lines[2].split()[1]
+out_path = lines[3].split()[2]
+ps_lin_path = lines[4].split()[3]
+sigma_r = float(lines[5].split()[1])
+iso = bool(int(lines[6].split()[2]))
+space = lines[7].split()[1]
+q_min = float(lines[8].split()[1]) # q means either s or k
+q_max = float(lines[9].split()[1])
+n_mu = int(lines[10].split()[1])
+bb_exp = list(map(int, lines[11].split(sep=': ')[1].split(sep=', ')))
 
+# Linear template and mu
+k, ps_lin = np.loadtxt(ps_lin_path, unpack=True)
+mu = np.linspace(0.001, 1., n_mu)
 
+# Open dictionary
+dict_path = out_path + label.lower() + '.dict'
+with open(dict_path, 'rb') as file:
+        dictionary = pickle.load(file)
+data = dictionary['multipoles']
+cov_matrix = dictionary['covariance']
+cov_inv = np.linalg.inc(cov_matrix)
+bf = dictionary['best_fit_values']
+sigmas = [bf['Sigma_par'], bf['Sigma_per'], bf['Sigma_fog']]
+
+# Run ZEUS sampler
 ndim = 4 # Number of parameters/dimensions 
 nwalkers = 10 # Number of walkers to use. It should be at least twice the number of dimensions.
 nsteps = 4000 # Number of steps/iterations.
