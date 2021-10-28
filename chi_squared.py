@@ -2,7 +2,7 @@ import numpy as np
 import scipy.interpolate as itp
 import scipy.integrate as integra
 from ps_template import *
-from mulipoles import *
+from multipoles import *
 
 def broadband(data, model, cov_inv, space='config'):
     if space=='config':
@@ -11,10 +11,10 @@ def broadband(data, model, cov_inv, space='config'):
         V = np.concatenate((xi0, xi2)) - np.concatenate((xi0m, xi2m))
 
         # broad band terms
-        A = np.zeros((6, 2*len(r)))
+        A = np.zeros((6, 2*len(s)))
         for i in range(0, 3):
-            A[i, 0:len(r)] = s**(i - 2)
-            A[3+i, len(r):] = s**(i - 2)
+            A[i, 0:len(s)] = s**(i - 2)
+            A[3+i, len(s):] = s**(i - 2)
 
     elif space=='fourier':
         k, ps0, ps2 = data

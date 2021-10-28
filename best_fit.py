@@ -1,5 +1,3 @@
-!/usr/bin/env python
-
 import numpy as np
 import scipy.interpolate as itp
 import scipy.optimize as op
@@ -9,7 +7,7 @@ import pickle
 from matplotlib import pyplot as plt
 from ps_template import *
 from multipoles import *
-from chi_square import *
+from chi_squared import *
 from truncate_covariance import *
 
 # read parameters from file
@@ -29,10 +27,11 @@ n_mu = int(lines[10].split()[1])
 
 # Linear template and mu
 k, ps_lin = np.loadtxt(ps_lin_path, unpack=True)
-mu = np.linspace(0., 1., n_mu)
+mu = np.linspace(0.001, 1., n_mu)
 
 # multipoles
-data = np.loadtxt(mul_path, usecols=(0,3,4), unpack=True)
+#data = np.loadtxt(mul_path, usecols=(0,3,4), unpack=True)
+data = np.loadtxt(mul_path, usecols=(0,1,2), unpack=True)
 q_mask = (q_min<=data[0]) & (data[0]<=q_max)
 data = data[:, q_mask]
 n_q = len(data[0])
@@ -42,16 +41,16 @@ cov_matrix = truncate(cov_path, q_min, q_max)
 cov_inv = np.linalg.inv(cov_matrix)
 
 # minimise
-best_fit = op.minimize(chi2, [1, 0.35, 1, 1, 4, 2.5, 3], args=(data, cov_inv, [k, ps_lin], mu, sigma_r, iso, space=space), bounds=[(1, 10), (0, 5), (0.8, 1.2), (0.8, 1.2), (0, 12), (0, 12), (0, 8)])
+best_fit = op.minimize(chi2, [1, 0.35, 1, 1, 4, 2.5, 3], args=(data, cov_inv, [k, ps_lin], mu, sigma_r, iso, None, space), bounds=[(1, 10), (0, 5), (0.8, 1.2), (0.8, 1.2), (0, 12), (0, 12), (0, 8)])
 
 # get broad band coefficients
 b, beta, alpha_par, alpha_per, S_par, S_per, S_s = best_fit.x
 if space=='config':
-    pt = power_spectrum_template(k, mu, pk_lin, S_par, S_per, S_s, sigma_r, b, beta, iso)
+    pt = power_spectrum_template(k, mu, ps_lin, S_par, S_per, S_s, sigma_r, b, beta, iso)
     model = two_point_cf_template(data[0], k, mu, pt, alpha_par, alpha_per)
 
 elif space=='fourier':
-    model = ps_multipoles_template(k_data, k_lin, mu, pk_lin, S_par, S_per, S_s, sigma_r, b, beta, iso, alpha_par, alpha_per)
+    model = ps_multipoles_template(k_data, k_lin, mu, ps_lin, S_par, S_per, S_s, sigma_r, b, beta, iso, alpha_par, alpha_per)
 
 coeffs = broadband(data, model, cov_inv, space=space)[2]
 

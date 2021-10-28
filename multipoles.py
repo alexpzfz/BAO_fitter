@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.interpolate as itp
 import scipy.integrate as integrate
-from ps_template.py import *
+from ps_template import *
 
 # Legendre polyonomials
 def lp2(x):
