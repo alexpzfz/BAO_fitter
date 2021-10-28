@@ -46,7 +46,7 @@ def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, sigmas=No
         k_data, ps0, ps2 = data
         k_lin, ps_lin = linear_template
 
-        ps0m, ps2m = ps_multipoles_template(k_data, k_lin, mu, pk_lin, S_par, S_per, S_s, S_r, b, beta, iso, alpha_par, alpha_per)
+        ps0m, ps2m = ps_multipoles_template(k_data, k_lin, mu, ps_lin, S_par, S_per, S_s, S_r, b, beta, iso, alpha_par, alpha_per)
         V = np.concatenate((ps0m, ps2m)) - np.concatenate((ps0, ps2))
         bb0, bb2, _ = broadband([k_data, ps0, ps2], [ps0m, ps2m], cov_inv, bb_exp)
 

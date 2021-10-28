@@ -51,7 +51,7 @@ if space=='config':
     model = two_point_cf_template(data[0], k, mu, pt, alpha_par, alpha_per)
 
 elif space=='fourier':
-    model = ps_multipoles_template(k_data, k_lin, mu, ps_lin, S_par, S_per, S_s, sigma_r, b, beta, iso, alpha_par, alpha_per)
+    model = ps_multipoles_template(data[0], k, mu, ps_lin, S_par, S_per, S_s, sigma_r, b, beta, iso, alpha_par, alpha_per)
 
 coeffs = broadband(data, model, cov_inv, bb_exp)[2]
 
