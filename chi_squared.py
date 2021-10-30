@@ -73,9 +73,9 @@ def logprior(theta, sigmas=None):
         lp += 0. if 0 < S_s < 8 else -np.inf
     return lp
 
-def loglike(theta, data, cov_inv, linear_template, S_r, iso, bb_exp, sigmas=None, space='config'):
-    return -0.5 * chi2(theta, data, cov_inv, linear_template, S_r, iso, bb_exp, sigmas, space)
+def loglike(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas=None, space='config'):
+    return -0.5 * chi2(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas, space)
 
-def logpost(theta, data, cov_inv, linear_template, S_r, iso, bb_exp, sigmas=None, space='config'):
+def logpost(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas=None, space='config'):
     '''The natural logarithm of the posterior.'''
-    return logprior(theta, sigmas) + loglike(theta, data, cov_inv, linear_template, S_r, iso, bb_exp, sigmas, space)
+    return logprior(theta, sigmas) + loglike(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas, space)

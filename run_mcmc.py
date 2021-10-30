@@ -9,27 +9,27 @@ from multipoles import *
 from chi_squared import *
 from truncate_covariance import *
 import zeus
-from multiprocessing import Pool
+from zeus import ChainManager
 
 # read parameters from file
 params = sys.argv[1]
 with open(params, 'r') as file:
     lines = file.readlines()
 label = lines[0].split()[1]
-mul_path = lines[1].split()[1]
-cov_path = lines[2].split()[1]
+#mul_path = lines[1].split()[1]
+#cov_path = lines[2].split()[1]
 out_path = lines[3].split()[2]
 ps_lin_path = lines[4].split()[3]
 sigma_r = float(lines[5].split()[1])
 iso = bool(int(lines[6].split()[2]))
 space = lines[7].split()[1]
-q_min = float(lines[8].split()[1]) # q means either s or k
-q_max = float(lines[9].split()[1])
+#q_min = float(lines[8].split()[1]) # q means either s or k
+#q_max = float(lines[9].split()[1])
 n_mu = int(lines[10].split()[1])
 bb_exp = list(map(int, lines[11].split(sep=': ')[1].split(sep=', ')))
 
 # Linear template and mu
-k, ps_lin = np.loadtxt(ps_lin_path, unpack=True)
+linear_template = np.loadtxt(ps_lin_path, unpack=True)
 mu = np.linspace(0.001, 1., n_mu)
 
 # Open dictionary
@@ -41,11 +41,14 @@ cov_matrix = dictionary['covariance']
 cov_inv = np.linalg.inc(cov_matrix)
 bf = dictionary['best_fit_values']
 sigmas = [bf['Sigma_par'], bf['Sigma_per'], bf['Sigma_fog']]
+print('Read file: ' + dict_path)
 
 # Run ZEUS sampler
 ndim = 4 # Number of parameters/dimensions 
-nwalkers = 10 # Number of walkers to use. It should be at least twice the number of dimensions.
+nwalkers = 2*ndim # Number of walkers to use. It should be at least twice the number of dimensions.
 nsteps = 4000 # Number of steps/iterations.
+nchains = 2
+bi = 0.3 # Burn-in
 
 # Initial positions of the walkers.
 start_b = 0.2 * np.random.randn(nwalkers)[:,None] + 1.5
@@ -54,35 +57,30 @@ start_alpha_par = 0.1 * np.random.rand(nwalkers)[:, None] + 1
 start_alpha_per = 0.1 * np.random.rand(nwalkers)[:,None] + 1
 start = np.concatenate((start_b, start_beta, start_alpha_par, start_alpha_per), axis=1)
 
-with Pool() as pool:
-    sampler = zeus.EnsembleSampler(nwalkers, ndim, logpost, args=[data, cov_matrix, fourier_space, sigma_r, iso, sigmas], pool=pool) # Initialise the sampler
+with ChainManager(nchains) as cm:
+    rank = cm.get_rank
+
+    sampler = zeus.EnsembleSampler(nwalkers, ndim, logpost, args=[data, cov_inv, linear_template, mu, sigma_r, iso, bb_exp, sigmas, space], pool=cm.get_pool) # Initialise the sampler
     sampler.run_mcmc(start, nsteps) # Run sampling
-sampler.summary # Print summary diagnostics
+    sampler.summary # Print summary diagnostics
 
-chains = sampler.get_chain(flat=False, thin=1)
-bi = 0.3
-n_bi = int(len(chains)*bi)
-chains = chains[n_bi:]
+    chains = sampler.get_chain(flat=False, thin=1)
+    n_bi = int(len(chains)*bi)
+    chains = chains[n_bi:]
+    chains_path = out_path + 'chains_' + str(rank) + '.npy'
+    np.save(chains_path, chains)
+    print('Saved file: ' + chains_path)
 
-chains_path = '/global/homes/a/alexpzfz/alexdesi/bao_fitting/results/'+label.lower()+'.chains'
-summary_path = '/global/homes/a/alexpzfz/alexdesi/bao_fitting/results/'+label.lower()+'_summary.txt'
-    
-with open(chains_path, 'wb') as file:
-    pickle.dump(chains, file)
-    
-with open(summary_path, 'w') as file:
-    file.write(f'Number of Generations: {nsteps}\n')
-    file.write(f'Number of Parameters: {ndim}\n')
-    file.write(f'Number of Walkers: {nwalkers}\n')
-    file.write(f'Number of Tuning Generationss: {len(sampler.scale_factor)}\n')
-    file.write(f'Scale Factor: {sampler.scale_factor[-1]}\n')
-    file.write(f'Mean Integrated Autocorrelation Time: {np.mean(sampler.act)}\n')
-    file.write(f'Effective Sample Size: {sampler.ess}\n')
-    file.write(f'Number of Log Probability Evaluations: {sampler.ncall}\n')
-    file.write(f'Effective Samples per Log Probability Evaluation: {sampler.efficiency}')
-    
-print('Files saved:', '\n'+chains_path, '\n'+summary_path)
-
+#with open(summary_path, 'w') as file:
+#    file.write(f'Number of Generations: {nsteps}\n')
+#    file.write(f'Number of Parameters: {ndim}\n')
+#    file.write(f'Number of Walkers: {nwalkers}\n')
+#    file.write(f'Number of Tuning Generationss: {len(sampler.scale_factor)}\n')
+#    file.write(f'Scale Factor: {sampler.scale_factor[-1]}\n')
+#    file.write(f'Mean Integrated Autocorrelation Time: {np.mean(sampler.act)}\n')
+#    file.write(f'Effective Sample Size: {sampler.ess}\n')
+#    file.write(f'Number of Log Probability Evaluations: {sampler.ncall}\n')
+#    file.write(f'Effective Samples per Log Probability Evaluation: {sampler.efficiency}')
 
 # # save results
 # chain = np.reshape(chains, (len(chains)*10, 4))
