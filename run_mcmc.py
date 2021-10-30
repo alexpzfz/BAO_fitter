@@ -38,7 +38,7 @@ with open(dict_path, 'rb') as file:
         dictionary = pickle.load(file)
 data = dictionary['multipoles']
 cov_matrix = dictionary['covariance']
-cov_inv = np.linalg.inc(cov_matrix)
+cov_inv = np.linalg.inv(cov_matrix)
 bf = dictionary['best_fit_values']
 sigmas = [bf['Sigma_par'], bf['Sigma_per'], bf['Sigma_fog']]
 print('Read file: ' + dict_path)
