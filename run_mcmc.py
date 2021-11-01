@@ -57,10 +57,15 @@ start_alpha_par = 0.1 * np.random.rand(nwalkers)[:, None] + 1
 start_alpha_per = 0.1 * np.random.rand(nwalkers)[:,None] + 1
 start = np.concatenate((start_b, start_beta, start_alpha_par, start_alpha_per), axis=1)
 
+# Fix other arguments in order to improve 'pickling' while parallelising
+def Logpost(theta):
+    lp = logpost(theta, data, cov_inv, linear_template, mu, sigma_r, iso, bb_exp, sigmas, space)
+    return lp
+    
 with ChainManager(nchains) as cm:
     rank = cm.get_rank
 
-    sampler = zeus.EnsembleSampler(nwalkers, ndim, logpost, args=[data, cov_inv, linear_template, mu, sigma_r, iso, bb_exp, sigmas, space], pool=cm.get_pool) # Initialise the sampler
+    sampler = zeus.EnsembleSampler(nwalkers, ndim, Logpost, pool=cm.get_pool) # Initialise the sampler
     sampler.run_mcmc(start, nsteps) # Run sampling
     sampler.summary # Print summary diagnostics
 
