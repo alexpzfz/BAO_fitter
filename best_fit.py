@@ -3,6 +3,7 @@ import scipy.interpolate as itp
 import scipy.optimize as op
 import scipy.integrate as integrate
 import sys
+import os
 import pickle
 from ps_template import *
 from multipoles import *
@@ -73,12 +74,13 @@ with open(out_path + label.lower() + '.dict', 'wb') as file:
     pickle.dump(data_dict, file)
 
 # save loglikelihood for cronus
+fitter_path = os.path.dirname(os.path.realpath(__file__))
 loglike_path = label.lower() + '_loglikelihood.py'
 with open(loglike_path, "w") as file:
     file.write(f"""
 import os, sys
 os.environ["OMP_NUM_THREADS"] = "1"
-fitter_path = os.path.dirname(os.getcwd())
+fitter_path = '{fitter_path}'
 sys.path.append(fitter_path)
 import numpy as np
 from chi_squared import *
@@ -170,4 +172,6 @@ Diagnostics:
     nact: 20
     dact: 0.03
 
+Output:
+  directory: {out_path}
 """)
