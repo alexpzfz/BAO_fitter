@@ -26,12 +26,8 @@ def broadband(data, model, cov_inv, exp_list):
     return bb0, bb2, coeffs
 
 
-def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, sigmas=None, space='config'):
-    if sigmas==None: # for best-fit
-        b, beta, alpha_par, alpha_per, S_par, S_per, S_s = theta
-    else: # for mcmc with fixed sigmas
-        b, beta, alpha_par, alpha_per = theta
-        S_par, S_per, S_s = sigmas
+def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, space):
+    b, beta, alpha_par, alpha_per, S_par, S_per, S_s = theta
 
     if space=='config':
         s, xi0, xi2 = data
@@ -46,7 +42,8 @@ def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, sigmas=No
         k_data, ps0, ps2 = data
         k_lin, ps_lin = linear_template
 
-        ps0m, ps2m = ps_multipoles_template(k_data, k_lin, mu, ps_lin, S_par, S_per, S_s, S_r, b, beta, iso, alpha_par, alpha_per)
+        ps0m, ps2m = ps_multipoles_template(k_data, k_lin, mu, ps_lin, S_par,
+                                            S_per, S_s, S_r, b, beta, iso, alpha_par, alpha_per)
         V = np.concatenate((ps0m, ps2m)) - np.concatenate((ps0, ps2))
         bb0, bb2, _ = broadband([k_data, ps0, ps2], [ps0m, ps2m], cov_inv, bb_exp)
 
@@ -55,27 +52,6 @@ def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, sigmas=No
 
     return chi2
 
-def logprior(theta, sigmas=None):
-    if sigmas==None:
-        b, beta, alpha_par, alpha_per, S_par, S_per, S_s = theta
-    else:
-        b, beta, alpha_par, alpha_per = theta
-        S_par, S_per, S_s = sigmas
-        
-    lp = 0. if 0.5 < b < 3 else -np.inf
-    lp += 0. if 0 < beta < 2 else -np.inf
-    lp += 0. if 0.8 < alpha_par < 1.2 else -np.inf
-    lp += 0. if 0.8 < alpha_per < 1.2 else -np.inf
-    
-    if sigmas == None:
-        lp += 0. if 0 < S_par < 12 else -np.inf
-        lp += 0. if 0 < S_per < 12 else -np.inf
-        lp += 0. if 0 < S_s < 8 else -np.inf
-    return lp
 
-def loglike(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas=None, space='config'):
-    return -0.5 * chi2(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas, space)
-
-def logpost(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas=None, space='config'):
-    '''The natural logarithm of the posterior.'''
-    return logprior(theta, sigmas) + loglike(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, sigmas, space)
+def loglike(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, space):
+    return -0.5 * chi2(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, space)
