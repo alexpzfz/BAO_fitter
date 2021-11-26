@@ -25,6 +25,7 @@ q_min = float(lines[8].split()[1]) # q means either s or k
 q_max = float(lines[9].split()[1])
 n_mu = int(lines[10].split()[1])
 bb_exp = list(map(int, lines[11].split(sep=': ')[1].split(sep=', ')))
+fix_sigmas = bool(int(lines[12].split()[2]))
 
 # Linear template and mu
 k, ps_lin = np.loadtxt(ps_lin_path, unpack=True)
@@ -70,33 +71,32 @@ data_dict['best_fit_values'] = {'b':b, 'beta':beta, 'alpha_par':alpha_par,
                                 'Sigma_per':S_per, 'Sigma_fog':S_s}
 data_dict['broad_band_exp'] = bb_exp
 data_dict['broad_band_coeff'] = np.split(coeffs, 2)
-with open(out_path + label.lower() + '.dict', 'wb') as file:
+dict_path = out_path + label.lower() + '.dict'
+with open(dict_path, 'wb') as file:
     pickle.dump(data_dict, file)
 
-# save loglikelihood for cronus
+# save posterior
 fitter_path = os.path.dirname(os.path.realpath(__file__))
-loglike_path = label.lower() + '_loglikelihood.py'
-with open(loglike_path, "w") as file:
-    file.write(f"""
-import os, sys
-os.environ["OMP_NUM_THREADS"] = "1"
+logpost_path = label.lower() + '_logposterior.py'
+with open(logpost_path, "w") as file:
+    file.write(f"""import sys
 fitter_path = '{fitter_path}'
 sys.path.append(fitter_path)
 import numpy as np
+import pickle
 from chi_squared import *
 from truncate_covariance import *
 
+# load dictionary
+dict_path = '{dict_path}'
+with open(dict_path, 'rb') as file:
+        dictionary = pickle.load(file)
+
 # multipoles
-mul_path = '{mul_path}'
-q_min = {q_min}
-q_max = {q_max}
-data = np.loadtxt(mul_path, usecols=(0,1,2), unpack=True)
-q_mask = (q_min<=data[0]) & (data[0]<=q_max)
-data = data[:, q_mask]
+data = dictionary['multipoles']
 
 # covariance matrix
-cov_path = '{cov_path}'
-cov_matrix = truncate(cov_path, q_min, q_max)
+cov_matrix = dictionary['covariance']
 cov_inv = np.linalg.inv(cov_matrix)
 
 # linear template
@@ -112,66 +112,54 @@ S_r = {sigma_r}
 iso = {iso}
 bb_exp = {bb_exp}
 space = '{space}'
-
-# likelihood function
-def log_like(theta):
-    l = loglike(theta, data, cov_inv, linear_template,
-                mu, S_r, iso, bb_exp, space)
-    return l
 """)
 
-# save .yaml for chronus
-yaml_path = label.lower() + '.yaml'
-with open(yaml_path, 'w') as file:
-    file.write(f"""
-Likelihood:
-  path: {loglike_path}
-  function: log_like
+if fix_sigmas==True:
+    with open(logpost_path, "a") as file:
+        file.write(f"""S_par = {S_par}
+S_per = {S_per}
+S_s = {S_s}
+sigmas = [S_par, S_per, S_s]
 
-Parameters:
-  b:
-    prior:
-      type: uniform
-      min: 0.5
-      max: 3
-  beta:
-    prior:
-      type: uniform
-      min: 0
-      max: 2
-  alpha_par:
-    prior:
-      type: uniform
-      min: 0.9
-      max: 1.1
-  alpha_per:
-    prior:
-      type: uniform
-      min: 0.9
-      max: 1.1
-  Sigma_par:
-    fixed: {S_par}
-  Sigma_per:
-    fixed: {S_per}
-  S_fog:
-    fixed: {S_s}
+# likelihood
+def log_like(theta):
+    l = loglike(theta, data, cov_inv, linear_template,
+                mu, S_r, iso, bb_exp, space, sigmas)
+    return l
 
-Sampler:
-  name: zeus
-  ndim: 7
-  nwalkers: 14
-  nchains: 2
-  initial: ellipse
+# prior
+def log_prior(theta):
+    b, beta, alpha_par, alpha_per = theta
+    lp = 0. if 0.5 < b < 3 else -np.inf
+    lp += 0. if 0 < beta < 2 else -np.inf
+    lp += 0. if 0.9 < alpha_par < 1.1 else -np.inf
+    lp += 0. if 0.9 < alpha_per < 1.1 else -np.inf
 
-Diagnostics:
-  Gelman-Rubin:
-    use: True
-    epsilon: 0.05
-  Autocorrelation:
-    use: True
-    nact: 20
-    dact: 0.03
+# posterior
+log_post(theta):
+    return log_like(theta) + log_prior(theta)
+""")
+else:
+    with open(logpost_path, "a") as file:
+        file.write("""
+# likelihood
+def log_like(theta):
+    l = loglike(theta, data, cov_inv, linear_template,
+                mu, S_r, iso, bb_exp, space, None)
+    return l
 
-Output:
-  directory: {out_path}
+# prior
+def log_prior(theta):
+    b, beta, alpha_par, alpha_per, S_par, S_per, S_s = theta
+    lp = 0. if 0.5 < b < 3 else -np.inf
+    lp += 0. if 0 < beta < 2 else -np.inf
+    lp += 0. if 0.9 < alpha_par < 1.1 else -np.inf
+    lp += 0. if 0.9 < alpha_per < 1.1 else -np.inf
+    lp += 0. if 0 < S_par < 12 else -np.inf
+    lp += 0. if 0 < S_per < 12 else -np.inf
+    lp += 0. if 0 < S_s < 8 else -np.inf
+
+# posterior
+log_post(theta):
+    return log_like(theta) + log_prior(theta)
 """)

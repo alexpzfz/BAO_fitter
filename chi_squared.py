@@ -26,8 +26,12 @@ def broadband(data, model, cov_inv, exp_list):
     return bb0, bb2, coeffs
 
 
-def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, space):
-    b, beta, alpha_par, alpha_per, S_par, S_per, S_s = theta
+def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, space, sigmas=None):
+    if sigmas==None: # Varying sigmas
+        b, beta, alpha_par, alpha_per, S_par, S_per, S_s = theta
+    else: # Fixed sigmas
+        b, beta, alpha_par, alpha_per = theta
+        S_par, S_per, S_s = sigmas
 
     if space=='config':
         s, xi0, xi2 = data
@@ -53,5 +57,5 @@ def chi2(theta, data, cov_inv, linear_template, mu , S_r, iso, bb_exp, space):
     return chi2
 
 
-def loglike(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, space):
-    return -0.5 * chi2(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, space)
+def loglike(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, space, sigmas=None):
+    return -0.5 * chi2(theta, data, cov_inv, linear_template, mu, S_r, iso, bb_exp, space, sigmas)
