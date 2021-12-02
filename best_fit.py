@@ -66,8 +66,8 @@ data_dict['covariance'] = cov_matrix
 data_dict['Sigma_r'] = sigma_r
 data_dict['iso'] = iso
 data_dict['best_fit_out'] = best_fit
-data_dict['best_fit_values'] = {'b':b, 'beta':beta, 'alpha_par':alpha_par, 
-                                'alpha_per':alpha_per, 'Sigma_par':S_par, 
+data_dict['best_fit_values'] = {'b':b, 'beta':beta, 'alpha_par':alpha_par,
+                                'alpha_per':alpha_per, 'Sigma_par':S_par,
                                 'Sigma_per':S_per, 'Sigma_fog':S_s}
 data_dict['broad_band_exp'] = bb_exp
 data_dict['broad_band_coeff'] = np.split(coeffs, 2)
@@ -75,17 +75,21 @@ dict_path = out_path + label.lower() + '.dict'
 with open(dict_path, 'wb') as file:
     pickle.dump(data_dict, file)
 
-# save posterior
+# save file for Zeus-MCMC
 fitter_path = os.path.dirname(os.path.realpath(__file__))
-logpost_path = label.lower() + '_logposterior.py'
-with open(logpost_path, "w") as file:
+mcmc_path = label.lower() + '_run_mcmc.py'
+with open(mcmc_path, "w") as file:
     file.write(f"""import sys
 fitter_path = '{fitter_path}'
 sys.path.append(fitter_path)
 import numpy as np
 import pickle
 from chi_squared import *
-from truncate_covariance import *
+import zeus
+from zeus import ChainManager
+
+#output
+out_path = '{out_path}'
 
 # load dictionary
 dict_path = '{dict_path}'
@@ -115,7 +119,7 @@ space = '{space}'
 """)
 
 if fix_sigmas==True:
-    with open(logpost_path, "a") as file:
+    with open(mcmc_path, "a") as file:
         file.write(f"""S_par = {S_par}
 S_per = {S_per}
 S_s = {S_s}
@@ -134,14 +138,27 @@ def log_prior(theta):
     lp += 0. if 0 < beta < 2 else -np.inf
     lp += 0. if 0.9 < alpha_par < 1.1 else -np.inf
     lp += 0. if 0.9 < alpha_per < 1.1 else -np.inf
+    return lp
 
 # posterior
-log_post(theta):
+def log_post(theta):
     return log_like(theta) + log_prior(theta)
+
+# parameters for Zeus
+ndim = 4
+nwalkers = 2*ndim
+nchains = 4
+nsteps = 2000
+
+start_b = 0.2 * np.random.randn(nwalkers)[:, None] + {b}
+start_beta = 0.2 * np.random.rand(nwalkers)[:, None] + {beta}
+start_alpha_par = 0.05 * np.random.rand(nwalkers)[:, None] + {alpha_par}
+start_alpha_per = 0.05 * np.random.rand(nwalkers)[:, None] + {alpha_per}
+start = np.concatenate((start_b, start_beta, start_alpha_par, start_alpha_per), axis=1)
 """)
 else:
-    with open(logpost_path, "a") as file:
-        file.write("""
+    with open(mcmc_path, "a") as file:
+        file.write(f"""
 # likelihood
 def log_like(theta):
     l = loglike(theta, data, cov_inv, linear_template,
@@ -158,8 +175,42 @@ def log_prior(theta):
     lp += 0. if 0 < S_par < 12 else -np.inf
     lp += 0. if 0 < S_per < 12 else -np.inf
     lp += 0. if 0 < S_s < 8 else -np.inf
+    return lp
 
 # posterior
-log_post(theta):
+def log_post(theta):
     return log_like(theta) + log_prior(theta)
+
+# parameters for Zeus
+ndim = 7
+nwalkers = 2*ndim
+nchains = 2
+nsteps = 1000
+
+start_b = 0.2 * np.random.randn(nwalkers)[:, None] + {b}
+start_beta = 0.2 * np.random.rand(nwalkers)[:, None] + {beta}
+start_alpha_par = 0.05 * np.random.rand(nwalkers)[:, None] + {alpha_par}
+start_alpha_per = 0.05 * np.random.rand(nwalkers)[:, None] + {alpha_per}
+start_Sigma_par = 0.1 * np.random.rand(nwalkers)[:, None] + {S_par}
+start_Sigma_per = 0.1 * np.random.rand(nwalkers)[:, None] + {S_per}
+start_Sigma_s = 0.1 * np.random.rand(nwalkers)[:, None] + {S_s}
+start = np.concatenate((start_b, start_beta, start_alpha_par, start_alpha_per,
+                        start_Sigma_par, start_Sigma_per, start_Sigma_s), axis=1)
+""")
+
+with open(mcmc_path, "a") as file:
+    file.write("""
+with ChainManager(nchains) as cm:
+    rank = cm.get_rank
+    cb = zeus.callbacks.ParallelSplitRCallback(epsilon=0.03, chainmanager=cm)
+    sampler = zeus.EnsembleSampler(nwalkers, ndim, log_post, pool=cm.get_pool) # Initialise the sampler
+    sampler.run_mcmc(start, nsteps, callbacks=cb) # Run the sampler
+    chain = sampler.get_chain(flat=False, thin=1)
+    
+    if rank==0:
+        print('R=', cb.estimates, flush=True)
+
+    chain_path = out_path + 'chain_' + str(rank) + '.npy'
+    np.save(chain_path, chain)
+    print('Saved file: ' + chain_path)
 """)
