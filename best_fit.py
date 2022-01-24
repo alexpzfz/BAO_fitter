@@ -202,7 +202,7 @@ with open(mcmc_path, "a") as file:
     file.write("""
 with ChainManager(nchains) as cm:
     rank = cm.get_rank
-    cb = zeus.callbacks.ParallelSplitRCallback(epsilon=0.03, chainmanager=cm)
+    cb = zeus.callbacks.ParallelSplitRCallback(epsilon=0.01, chainmanager=cm)
     sampler = zeus.EnsembleSampler(nwalkers, ndim, log_post, pool=cm.get_pool) # Initialise the sampler
     sampler.run_mcmc(start, nsteps, callbacks=cb) # Run the sampler
     chain = sampler.get_chain(flat=False, thin=1)
