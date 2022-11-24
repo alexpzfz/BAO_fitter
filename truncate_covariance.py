@@ -1,6 +1,6 @@
 import numpy as np
 
-def truncate(cov_path, q_min, q_max):
+def truncate(cov_path, q_min, q_max, remove_hexa=True):
     old_cov = np.loadtxt(cov_path, unpack=True)
 
     # removing extra bins
@@ -12,7 +12,9 @@ def truncate(cov_path, q_min, q_max):
     # removing hexadecapole
     n_q = int(np.sqrt(len(cov[2]))/3)
     cov_matrix_complete = cov[2]
-    cov_matrix_complete = np.reshape(cov_matrix_complete, (3*n_q, 3*n_q))
-    cov_matrix = cov_matrix_complete[:2*n_q, :2*n_q]
+    cov_matrix = np.reshape(cov_matrix_complete, (3*n_q, 3*n_q))
+    
+    if remove_hexa:
+        cov_matrix = cov_matrix_complete[:2*n_q, :2*n_q]
 
     return cov_matrix
