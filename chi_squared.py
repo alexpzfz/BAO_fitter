@@ -3,8 +3,6 @@ import scipy.interpolate as itp
 import scipy.integrate as integra
 from power_spectrum import *
 from multipoles import *
-from data import Data
-from model import Model
 
 def broadband(q, data_poles, model_poles, cov_inv, exp_list):
     # q can be either s or k

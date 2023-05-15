@@ -6,54 +6,84 @@ from zeus import ChainManager
 from multipoles import *
 from power_spectrum import *
 from chi_squared import *
+from utils import *
 
 class Data:
     def __init__(self,
                  space,
-                 label,
-                 data_file,
-                 cov_file,
-                 ell = (0,),
-                 q_min = None,
-                 q_max = None,
+                 label = None,
+                 data = None,
+                 cov = None,
+                 data_file = None,
+                 cov_file = None,
+                 data_file_type = 'ascii',
+                 data_file_cols = (0, 1, 2),
+                 cov_file_type = 'ascii',
+                 cov_format = '3xN',
+                 cov_npoles = 3,
+                 ell = (0, 2),
                  recon = None,
                  Sigma_smooth = None,
-                 n_mocks = None):
+                 s_min = None,
+                 s_max = None,
+                 k_min = None,
+                 k_max = None):
         
         if space.lower() not in ['configuration', 'fourier']:
             raise Exception("Space must be 'configuration' or 'fourier'")
         
         if space.lower() == 'configuration':
             q = 's'
-            pole_labels = ['xi0', 'xi2', 'xi4']
+            pole_labels = [f'xi{l}' for l in ell]
+            q_min = s_min
+            q_max = s_max
         elif space.lower() == 'fourier':
             q = 'k'
-            pole_labels = ['pk0', 'pk2', 'pk4']
+            pole_labels = [f'pk{l}' for l in ell]
+            q_min = k_min
+            q_max = k_max
         
         self.label = label
         self.space = space
         self.ell = ell
-        self.data_file = os.path.abspath(data_file)
-        self.cov_file = os.path.abspath(cov_file)
-        self.n_mocks = n_mocks
         self.recon = recon
         self.Sigma_smooth = Sigma_smooth
         
-        d = {}
-        array = np.load(self.data_file).T
-        cov = np.load(self.cov_file)
+        if data:
+            array = data
         
+        if data_file:
+            self.data_file = os.path.abspath(data_file)
+            if data_file_type == 'ascii':
+                array = np.loadtxt(data_file, usecols=data_file_cols, unpack=True)
+            
+            elif data_file_type == 'npy':
+                array = np.load(data_file).T
+                   
+        if cov_file:
+            self.cov_file = os.path.abspath(cov_file)
+            if cov_file_type == 'ascii':
+                if cov_format == '3xN':
+                    covv = np.loadtxt(cov_file, unpack=True)
+                    n_s = int(np.sqrt(len(covv[2]))//cov_npoles)
+                    cov = np.reshape(covv[2], (3*n_s, 3*n_s))
+
+                elif cov_format == 'NxN':
+                    cov = np.loadtxt(cov_file)
+                    n_s = len(cov)//cov_npoles
+            elif cov_file_type == 'npy':
+                cov = np.load(cov_file)
+                n_s = cov.shape[0]//cov_npoles
+        
+        d = {}
         mask = (array[0]>=q_min) & (array[0]<=q_max)
-        n_s = len(mask)
         d[q] = array[0][mask]
         n_q = len(d[q])
         i_min = np.where(mask)[0][0]
         i_max = np.where(mask)[0][-1]
-        
-        idx = np.array(sorted(ell))//2
-        
+         
         self.poles = []
-        for n in idx:
+        for n in range(len(ell)):
             d[pole_labels[n]] = array[n+1][mask]
             self.poles.append(array[n+1][mask])
             
@@ -61,9 +91,9 @@ class Data:
         if space.lower() == 'configuration':
             self.s = self.data['s']
         elif space.lower() == 'fourier':
-            self.k = selr.data['k']
+            self.k = self.data['k']
 
-        
+        idx = np.array(sorted(ell))//2
         n_q = len(d[q])
         n_p = len(idx)
         covariance = np.zeros((n_p * n_q, n_p * n_q))
@@ -93,13 +123,11 @@ class Model:
 
     def __init__(self,
                  pk_linear = None,
-                 k = None,
                  cosmology = None,
                  params = None,
                  recon = None,
                  Sigma_smooth = None):
 
-        self.k = k
         self.pk_linear = pk_linear
         self.cosmology = cosmology
 
@@ -108,7 +136,7 @@ class Model:
         self.Sigma_smooth = Sigma_smooth
 
     def power_2D(self, k, mu):
-        p2d = power_2D(k, mu, self.k, self.pk_linear, recon=self.recon,
+        p2d = power_2D(k, mu, self.pk_linear, recon=self.recon,
                        Sigma_smooth=self.Sigma_smooth, **self.params)
         return p2d
     
@@ -126,14 +154,15 @@ class Model:
         return pkell
     
     def xi_poles(self, s, ell=(0,)):
+        k = self.pk_linear[0]
         if len(ell) == 1:
-            pkell = self.pk_poles(self.k, ell=ell)
-            xiell = xi_ell(s, ell[0], pkell, self.k)
+            pkell = self.pk_poles(k, ell=ell)
+            xiell = xi_ell(s, ell[0], pkell, k)
         else:
             xiell = []
-            pkell = self.pk_poles(self.k, ell=ell)
+            pkell = self.pk_poles(k, ell=ell)
             for i, l in enumerate(ell):
-                xiell.append(xi_ell(s, l, pkell[i], self.k))
+                xiell.append(xi_ell(s, l, pkell[i], k))
         return xiell
     
 
@@ -247,7 +276,11 @@ class Fitter:
         
     def run_sampler(self, out_path=None):
         if not out_path:
-            out_path = os.path.dirname(os.path.realpath(__file__)) + '/' + self.data.label.lower() + '/'
+            if self.data.label:
+                out_path = os.path.dirname(os.path.realpath(__file__)) + '/' + self.data.label.lower() + '/'
+            else:
+                out_path = os.path.dirname(os.path.realpath(__file__)) + '/' + os.path.basename(__file__) + '/'
+            
         bounds = list(self.prior_bounds.values())
         lows = [i[0] for i in bounds]
         highs = [i[1] for i in bounds]
@@ -265,6 +298,11 @@ class Fitter:
         
         with ChainManager(nchains) as cm:
             rank = cm.get_rank
+            if rank == 0:
+                if not os.path.isdir(out_path):
+                    os.makedirs(out_path)
+                    
+                    
             cb1 = zeus.callbacks.ParallelSplitRCallback(ncheck=100, nsplits=1, epsilon=epsilon,
                                                        discard=burn_in, chainmanager=cm)
             cb2 = zeus.callbacks.MinIterCallback(nmin=nmin)

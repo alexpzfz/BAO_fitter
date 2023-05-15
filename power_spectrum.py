@@ -9,21 +9,6 @@ def spline(x, y, x_new):
 
 #### FOLLOWING THE CONVENTION FROM BEUTLER ET. AL (2017)
 
-def smooth_hinton2017(ks, pk, degree=13, sigma=1, weight=0.5, **kwargs): # Taken from BARRY
-    """ Smooth power spectrum based on Hinton 2017 polynomial method """
-    # logging.debug("Smoothing spectrum using Hinton 2017 method")
-    log_ks = np.log(ks)
-    log_pk = np.log(pk)
-    index = np.argmax(pk)
-    maxk2 = log_ks[index]
-    gauss = np.exp(-0.5 * np.power(((log_ks - maxk2) / sigma), 2))
-    w = np.ones(pk.size) - weight * gauss
-    z = np.polyfit(log_ks, log_pk, degree, w=w)
-    p = np.poly1d(z)
-    polyval = p(log_ks)
-    pk_smoothed = np.exp(polyval)
-    return pk_smoothed
-
 def gaussd(k, mu, S_par, S_perp):
     """ Gaussian damping of the BAO feature """
     gd = np.exp(-(0.5) * ((k ** 2) * (mu ** 2) * (S_par ** 2) + (k ** 2) * (1 - mu ** 2) * (S_perp ** 2)))
@@ -42,18 +27,38 @@ def kaiser(mu, k, beta, recon=None, Sigma_smooth=None):
         ka = (1 + beta * (mu ** 2)) ** 2
     return ka
 
+# This function was taken from BARRY: https://github.com/Samreay/Barry/ 
+def smooth_hinton2017(ks, pk, degree=13, sigma=1, weight=0.5, **kwargs):
+    """ Smooth power spectrum based on Hinton 2017 polynomial method """
+    # logging.debug("Smoothing spectrum using Hinton 2017 method")
+    log_ks = np.log(ks)
+    log_pk = np.log(pk)
+    index = np.argmax(pk)
+    maxk2 = log_ks[index]
+    gauss = np.exp(-0.5 * np.power(((log_ks - maxk2) / sigma), 2))
+    w = np.ones(pk.size) - weight * gauss
+    z = np.polyfit(log_ks, log_pk, degree, w=w)
+    p = np.poly1d(z)
+    polyval = p(log_ks)
+    pk_smoothed = np.exp(polyval)
+    return pk_smoothed
+
 # Alcock-Paczynski, change of coordinates and multipoles
 # Power spectrum in 2D
-def power_2D(k_fid, mu_fid, k_template, pk_lin, alpha_par, alpha_perp, bias, beta, Sigma_par, Sigma_perp, Sigma_s, recon=None, Sigma_smooth=None):
+def power_2D(k_fid, mu_fid, pk_lin, alpha_par, alpha_perp, bias,
+             beta, Sigma_par, Sigma_perp, Sigma_s, recon=None, Sigma_smooth=None):
+    
     F = alpha_par / alpha_perp
+    
+    k_template, pk_template = pk_lin
 
     # define real coordinates
     k_p = (k_fid[:, None] / alpha_perp) * np.sqrt( 1 + mu_fid[None, :] ** 2 * (1 / (F ** 2) - 1) )
     mu_p = (mu_fid / F) / np.sqrt( 1 + mu_fid ** 2 * (1 / (F ** 2) - 1) )
 
     # no-wiggles power spectrum
-    pnw = smooth_hinton2017(k_template, pk_lin)
-    pk_int = spline(np.log(k_template), pk_lin, np.log(k_p))
+    pnw = smooth_hinton2017(k_template, pk_template)
+    pk_int = spline(np.log(k_template), pk_template, np.log(k_p))
     pnw_int = spline(np.log(k_template), pnw, np.log(k_p))
 
     # construct power spectrum in 2D
@@ -63,3 +68,4 @@ def power_2D(k_fid, mu_fid, k_template, pk_lin, alpha_par, alpha_perp, bias, bet
     p2d *= 1 / (alpha_perp ** 2 * alpha_par)
 
     return p2d
+
