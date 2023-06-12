@@ -1,8 +1,7 @@
 import numpy as np
-import os, sys
+import sys
 sys.path.append('../')
 from bao_fitter import Data, Model, Fitter
-import matplotlib.pyplot as plt
 
 d = Data(space='fourier', # can be fourier or configuration
          data_file='pk_multipoles.txt', 
@@ -19,8 +18,12 @@ m = Model(pk_linear=pk_lin)
 f = Fitter(data=d,
            model=m,
            bb_exp=(-2, -1, 0, 1, 2), # exponents of the broad-band terms to use
-           fixed_params={'Sigma_par':4., 'Sigma_perp':6., 'Sigma_s':0., 'beta':0.3}, # you can specify if you want some of the parameters to be fixed
+           fixed_params={'Sigma_s':0., 'beta':0.3}, # you can specify if you want some of the parameters to be fixed
            )
+
+# set gaussian priors, input mean and standard deviation
+f.set_gaussian_prior('Sigma_par', 4., 2.)
+f.set_gaussian_prior('Sigma_perp', 6., 2.)
 
 f.set_sampler_settings(nchains=2,
                        epsilon=0.001, # R-1 for Gelman-Rubin

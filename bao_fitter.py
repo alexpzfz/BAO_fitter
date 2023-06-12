@@ -123,13 +123,11 @@ class Model:
 
     def __init__(self,
                  pk_linear = None,
-                 cosmology = None,
                  params = None,
                  recon = None,
                  Sigma_smooth = None):
 
         self.pk_linear = pk_linear
-        self.cosmology = cosmology
 
         self.params = params if params else self.params
         self.recon = recon
@@ -176,14 +174,18 @@ class Fitter:
                  optimiser = 'L-BFGS-B',
                  fixed_params = None):
         
-        self.free_params = ['alpha_par', 'alpha_perp', 'bias', 'beta', 'Sigma_par', 'Sigma_perp', 'Sigma_s']
+        self.free_params = ['alpha_par', 'alpha_perp', 'bias', 'beta',
+                            'Sigma_par', 'Sigma_perp', 'Sigma_s']
+
         self.prior_bounds = {'alpha_par': (0.85, 1.15),
-                    'alpha_perp': (0.85, 1.15),
-                    'bias': (0.5, 3.),
-                    'beta': (0., 1.),
-                    'Sigma_par': (0., 12.),
-                    'Sigma_perp': (0., 12.),
-                    'Sigma_s': (0., 8.)}
+                             'alpha_perp': (0.85, 1.15),
+                             'bias': (0.5, 3.),
+                             'beta': (0., 0.8),
+                             'Sigma_par': (0., 12.),
+                             'Sigma_perp': (0., 12.),
+                             'Sigma_s': (0., 8.)}
+        
+        self.gaussian_prior = {}
         
         self.initial_positions = {}
         for param, value in self.prior_bounds.items():
@@ -238,13 +240,25 @@ class Fitter:
             
     def log_like(self, theta):            
         return -0.5 * self.chi2(theta)
- 
+    
+    
+    def set_gaussian_prior(self, param, mean, std):
+        assert param in self.free_params, f'{param} is not a free parameter.'
+        self.gaussian_prior[param] = (mean, std)
+        
+        
     def log_prior(self, theta):
         lp = 0.
         for i, param in enumerate(self.free_params):
             lower_bound = self.prior_bounds[param][0]
             upper_bound = self.prior_bounds[param][1]
             lp += 0. if lower_bound < theta[i] < upper_bound else -np.inf
+            
+            if param in self.gaussian_prior.keys():
+                mean = self.gaussian_prior[param][0]
+                std = self.gaussian_prior[param][1]
+                lp += -0.5 * ((theta[i] - mean)/std)**2
+            
         return lp
     
     def log_post(self, theta):
@@ -263,7 +277,8 @@ class Fitter:
         return best_fit
     
     
-    def set_sampler_settings(self, nwalkers=None, nchains=8, epsilon=0.001, nmin=500, nmax=2000, burn_in=0.3):
+    def set_sampler_settings(self, nwalkers=None, nchains=8, epsilon=0.001,
+                             nmin=500, nmax=2000, burn_in=0.3):
         if not nwalkers:
             nwalkers = 2 * len(self.free_params)
         self.sampler_settings = {}
@@ -294,7 +309,7 @@ class Fitter:
         
         ndim = len(self.free_params)
         start = np.random.uniform(low=lows, high=highs, size=(nwalkers, ndim))
-        print('Initial positions: \n', start)
+        print('Initial positions: \n', start, '\n')
         
         with ChainManager(nchains) as cm:
             rank = cm.get_rank
@@ -311,7 +326,7 @@ class Fitter:
             chain = sampler.get_chain(flat=False, thin=1)
             
             if rank == 0:
-                print('R = ', cb1.estimates, flush=True)
+                print('R = ', cb1.estimates, '\n', flush=True)
             
             chain_path = out_path + 'chain_' + str(rank) + '.npy'
             np.save(chain_path, chain)
